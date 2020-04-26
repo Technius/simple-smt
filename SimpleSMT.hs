@@ -220,6 +220,15 @@ readSExpr ('(' : more) = do (xs,more1) <- list more
   list txt         = do (v,txt1) <- readSExpr txt
                         (vs,txt2) <- list txt1
                         return (v:vs, txt2)
+readSExpr ('"' : more) = do (s, txt) <- str more
+                            pure (Atom s, txt)
+  where
+  str ('\\' : '"' : txt) = do (s, txt1) <- str txt
+                              pure ('"' : s, txt1)
+  str ('"' : txt) = pure ("", txt)
+  str (c : txt) = do (s, txt1) <- str txt
+                     pure (c : s, txt1)
+  str [] = Nothing
 readSExpr txt     = case break end txt of
                        (as,bs) | P.not (null as) -> Just (Atom as, bs)
                        _ -> Nothing
