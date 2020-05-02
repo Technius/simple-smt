@@ -280,7 +280,9 @@ newSolver exe opts mbLog =
            do cmd c
               mb <- getResponse
               case mb of
-                Just res -> do info ("[<-recv] " ++ showsSExpr res "")
+                Just res -> do case res of
+                                 Atom "success" -> pure ()
+                                 _ -> info ("[<-recv] " ++ showsSExpr res "")
                                return res
                 Nothing  -> fail "Missing response from solver"
 
