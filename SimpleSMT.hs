@@ -201,7 +201,7 @@ ppSExpr = go 0
     case ex of
       Atom x        -> showString x
       List es
-        | Just fs <- small 5 es ->
+        | Just fs <- small (5 :: Int) es ->
           showChar '(' . many (intersperse (showChar ' ') fs) . showChar ')'
 
       List (Atom x : es) -> showString "(" . showString x .
@@ -943,7 +943,7 @@ newLogger l = newLoggerWithHandler l stdout
 -- | A simple logger. Shows only messages logged at a level that is greater than
 -- or equal to the passed level.
 newLoggerWithHandler :: Int -> Handle -> IO Logger
-newLoggerWithHandler l handler =
+newLoggerWithHandler lvl handler =
   do tab <- newIORef 0
      lev <- newIORef 0
      let logLevel    = readIORef lev
@@ -951,7 +951,7 @@ newLoggerWithHandler l handler =
 
          shouldLog m =
            do cl <- logLevel
-              when (cl >= l) m
+              when (cl >= lvl) m
 
          logMessage x = shouldLog $
            do let ls = lines x

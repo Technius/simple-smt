@@ -2,7 +2,7 @@ import SimpleSMT
 
 main :: IO ()
 main =
-  do l <- newLogger
+  do l <- newLogger 0
      s <- newSolver "cvc4" ["--lang=smt2"] (Just l)
      setLogic s "QF_LIA"
      x <- declare s "x" tInt
