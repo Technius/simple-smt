@@ -187,6 +187,7 @@ ppSExpr = go 0
 
   new n e = showChar '\n' . tab n . go n e
 
+  small :: Integer -> [SExpr] -> Maybe [ShowS]
   small n es =
     case es of
       [] -> Just []
@@ -956,7 +957,7 @@ newLoggerWithHandler lvl handler =
          logMessage x = shouldLog $
            do let ls = lines x
               t <- readIORef tab
-              putStr $ unlines [ replicate t ' ' ++ l | l <- ls ]
+              putStr $ unlines [ replicate t ' ' ++ line | line <- ls ]
               hFlush handler
 
          logTab   = shouldLog (modifyIORef' tab (+ 2))
