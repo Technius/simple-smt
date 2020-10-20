@@ -683,7 +683,18 @@ and :: SExpr -> SExpr -> SExpr
 and p q = fun "and" [p,q]
 
 andMany :: [SExpr] -> SExpr
-andMany xs = if null xs then bool True else fun "and" xs
+andMany xs =
+  -- Remove all true literals
+  let xs' = filter (/= bool True) xs
+      flattenAnd s = case s of
+        List (Atom "and" : rest) -> rest
+        _ -> [s]
+      xs'' = foldMap flattenAnd xs in
+    if null xs'
+    then bool True
+    else if length xs' == 1
+         then head xs'
+         else fun "and" xs''
 
 -- | Disjunction.
 or :: SExpr -> SExpr -> SExpr
