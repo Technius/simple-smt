@@ -202,7 +202,7 @@ ppSExpr = go 0
     case ex of
       Atom x        -> showString x
       List es
-        | Just fs <- small (5 :: Int) es ->
+        | Just fs <- small (5 :: Integer) es ->
           showChar '(' . many (intersperse (showChar ' ') fs) . showChar ')'
 
       List (Atom x : es) -> showString "(" . showString x .
