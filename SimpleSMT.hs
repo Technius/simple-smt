@@ -24,6 +24,7 @@ module SimpleSMT
   , withLogLevel
   , logMessageAt
   , logIndented
+  , multicastLogger
 
     -- * Common SmtLib-2 Commands
   , setLogic, setLogicMaybe
@@ -139,7 +140,7 @@ import Data.Bits(testBit)
 import Data.IORef(newIORef, atomicModifyIORef, modifyIORef', readIORef,
                   writeIORef)
 import System.Process(runInteractiveProcess, waitForProcess)
-import System.IO (hFlush, hGetLine, hGetContents, hPutStrLn, stdout, hClose, Handle)
+import System.IO (hPutStr, hFlush, hGetLine, hGetContents, hPutStrLn, stdout, hClose, Handle)
 import System.Exit(ExitCode)
 import qualified Control.Exception as X
 import Control.Concurrent(forkIO)
@@ -968,14 +969,22 @@ newLoggerWithHandler lvl handler =
          logMessage x = shouldLog $
            do let ls = lines x
               t <- readIORef tab
-              putStr $ unlines [ replicate t ' ' ++ line | line <- ls ]
+              hPutStr handler $ unlines [ replicate t ' ' ++ line | line <- ls ]
               hFlush handler
 
          logTab   = shouldLog (modifyIORef' tab (+ 2))
          logUntab = shouldLog (modifyIORef' tab (subtract 2))
      return Logger { .. }
 
-
+multicastLogger :: Logger -> Logger -> Logger
+multicastLogger l1 l2 =
+  Logger
+    { logMessage = \m -> logMessage l1 m *> logMessage l2 m
+    , logLevel = max <$> logLevel l1 <*> logLevel l2
+    , logSetLevel = \_ -> pure ()
+    , logTab = logTab l1 *> logTab l2
+    , logUntab = logUntab l1 *> logUntab l2
+    }
 
 
 
