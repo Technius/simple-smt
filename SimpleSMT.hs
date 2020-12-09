@@ -18,6 +18,7 @@ module SimpleSMT
   , showsSExpr, ppSExpr, readSExpr
 
     -- ** Logging and Debugging
+  , LogType(..)
   , Logger(..)
   , newLogger
   , newLoggerWithHandler
@@ -261,6 +262,9 @@ newSolver exe opts mbLog =
      let info a = case mbLog of
                     Nothing -> return ()
                     Just l  -> logMessage l a
+         infoSexp ty e = case mbLog of
+                    Nothing -> pure ()
+                    Just l -> logSexp l ty e
 
      _ <- forkIO $ forever (do errs <- hGetLine hErr
                                info ("[stderr] " ++ errs))
@@ -274,9 +278,8 @@ newSolver exe opts mbLog =
                         []     -> (xs, Nothing)
                         y : ys -> (ys, Just y)
 
-     let cmd c = do let txt = showsSExpr c ""
-                    info ("[send->] " ++ txt)
-                    hPutStrLn hIn txt
+     let cmd c = do infoSexp LogSend c
+                    hPutStrLn hIn (showsSExpr c "")
                     hFlush hIn
 
          command c =
@@ -285,7 +288,7 @@ newSolver exe opts mbLog =
               case mb of
                 Just res -> do case res of
                                  Atom "success" -> pure ()
-                                 _ -> info ("[<-recv] " ++ showsSExpr res "")
+                                 _ -> infoSexp LogRecv res
                                return res
                 Nothing  -> fail "Missing response from solver"
 
@@ -919,10 +922,19 @@ named x e = fun "!" [e, Atom ":named", Atom x ]
 
 --------------------------------------------------------------------------------
 
+data LogType = LogSend | LogRecv | LogOther
+  deriving (Show, Eq)
+
 -- | Log messages with minimal formatting. Mostly for debugging.
 data Logger = Logger
-  { logMessage :: String -> IO ()
-    -- ^ Log a message.
+  { logSexp :: LogType -> SExpr -> IO ()
+    -- ^ Log (and pretty print) an S-expression, returning the formatted text.
+
+  , logFormat :: LogType -> String -> String
+    -- ^ Format a message based on the log type.
+
+  , logMessage :: String -> IO ()
+    -- ^ Log a string message.
 
   , logLevel   :: IO Int
 
@@ -966,6 +978,18 @@ newLoggerWithHandler lvl handler =
            do cl <- logLevel
               when (cl >= lvl) m
 
+         logSexp t e =
+           let txt = logFormat t (showsSExpr e "") in
+             logMessage txt
+
+         logFormat t s =
+           let prefix = case t of
+                 LogSend -> "[send->] "
+                 LogRecv -> "[<-recv] "
+                 LogOther -> ""
+           in
+             prefix <> s
+
          logMessage x = shouldLog $
            do let ls = lines x
               t <- readIORef tab
@@ -979,7 +1003,9 @@ newLoggerWithHandler lvl handler =
 multicastLogger :: Logger -> Logger -> Logger
 multicastLogger l1 l2 =
   Logger
-    { logMessage = \m -> logMessage l1 m *> logMessage l2 m
+    { logSexp = \t e -> logSexp l1 t e *> logSexp l2 t e
+    , logFormat = logFormat l2
+    , logMessage = \m -> logMessage l1 m *> logMessage l2 m
     , logLevel = max <$> logLevel l1 <*> logLevel l2
     , logSetLevel = \_ -> pure ()
     , logTab = logTab l1 *> logTab l2
